@@ -1,0 +1,14 @@
+services:
+  app:
+    container_name: xysynth
+    build: .
+    environment:
+      - ADMIN_ALLOWED_IPS=172.18.0.1
+      - ADMIN_PASSWORD=test
+      - SIGNUP_KEY=test
+      - ORIGIN=http://localhost:3000
+      - CF_TURNSTILE_SECRET=
+    #    volumes:
+    #      - "./storage:/app/storage"
+    ports:
+      - '3000:3000'

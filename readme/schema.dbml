@@ -1,0 +1,62 @@
+table annotations {
+  rank text [not null]
+  annotator_id text [not null]
+  task_id text [not null]
+  status text [not null]
+  createdAt integer [not null]
+
+  indexes {
+    (task_id, annotator_id) [pk]
+  }
+}
+
+table questionnaires {
+  id integer [pk, not null, increment]
+  questionnaire text [not null]
+  annotator_id text [not null]
+  createdAt integer [not null]
+
+  indexes {
+    annotator_id [name: 'questionnaires_annotator_id_unique', unique]
+  }
+}
+
+table session {
+  id text [pk, not null]
+  admin integer [not null]
+  createdAt integer [not null]
+}
+
+table sounds {
+  id text [pk, not null]
+  params text [not null]
+  notes text
+}
+
+table task_sounds {
+  task_id text [not null]
+  sound_id text [not null]
+
+  indexes {
+    (task_id, sound_id) [pk]
+  }
+}
+
+table tasks {
+  id text [pk, not null]
+  descriptor text [not null]
+  session_id text
+  tutorial integer [not null, default: 0]
+}
+
+ref: annotations.annotator_id > session.id
+
+ref: annotations.task_id > tasks.id
+
+ref: session.id - questionnaires.annotator_id
+
+ref: task_sounds.task_id > tasks.id
+
+ref: task_sounds.sound_id > sounds.id
+
+ref: tasks.session_id > session.id
