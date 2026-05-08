@@ -14,9 +14,11 @@
 
 	interface Props {
 		notes: MidiItem[];
+		pitch: number;
 		callback?: (sample: Sample) => void;
 	}
-	let { notes = $bindable(), callback = undefined }: Props = $props();
+
+	let { notes = $bindable(), pitch, callback = undefined }: Props = $props();
 
 	let errorMsg = $state('');
 	let paramSets: Params[];
@@ -33,11 +35,13 @@
 	}
 
 	async function playSound() {
+		busy = true;
 		oldSynth?.dispose();
 		const synth = await createSynth(params);
 		await synth.start();
-		synth.trigger(notes);
+		await synth.trigger(notes, pitch);
 		oldSynth = synth;
+		busy = false;
 	}
 
 	async function renderSounds() {
@@ -59,18 +63,18 @@
 		const buffer = await Tone.Offline(async () => {
 			const synth = await createSynth(params);
 			await synth.start();
-			synth.trigger(notes);
+			await synth.trigger(notes);
 		}, duration);
 
 		// @ts-ignore
 		const wav = audioBufferToWav(buffer);
 		const b64 = Array.from(new Uint8Array(wav));
 
-		await fetch('/api/sound', { method: 'POST', body: JSON.stringify({ params, notes, b64 }) })
+		await fetch('/sound', { method: 'POST', body: JSON.stringify({ params, notes, pitch, b64 }) })
 			.then(async (res) => {
 				if (!res.ok) throw new Error(res.statusText);
-				const { id } = await res.json();
-				callback?.({ id, params, notes });
+				let { id, params: _params, notes: _notes }: Sample = await res.json();
+				callback?.({ id, params: _params, notes: _notes });
 				params = getNewParams();
 			})
 			.catch((e) => {
@@ -94,7 +98,7 @@
 				min="0"
 				max="1"
 				step="0.01"
-				class="h-[2px] w-50 cursor-default appearance-none bg-gray-400 accent-blue-500"
+				class="h-[2px] w-50 hover:cursor-grab active:cursor-grabbing appearance-none bg-gray-400 accent-blue-500"
 				bind:value={params[paramName]}
 			/>
 			<span class="text-xs ml-1">
@@ -122,7 +126,7 @@
 			class="px-3 py-1 rounded-lg bg-green-500 text-white hover:cursor-pointer hover:bg-green-700 disabled:cursor-auto disabled:bg-green-300"
 			onclick={playSound}
 		>
-			<span class="icon-[carbon--play-filled-alt] -mb-0.5 text-white"></span>
+			<span class="icon-[carbon--play-filled] -mb-1 text-xl text-white"></span>
 		</button>
 	</div>
 </div>

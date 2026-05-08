@@ -59,7 +59,7 @@ const handleRoute: Handle = async ({ event, resolve }) => {
 		}
 	}
 	// Signup route, check signup key
-	else if (event.url.pathname === '/signup') {
+	else if (event.url.pathname.endsWith('/signup')) {
 		if (event.locals.session) {
 			redirect(303, '/');
 		}
@@ -74,7 +74,7 @@ const handleRoute: Handle = async ({ event, resolve }) => {
 			return error(401);
 		}
 	}
-	// No session, redirect to signup
+	// No session, no access
 	else if (!event.locals.session && !hasAPIAuth) {
 		return error(401);
 	}

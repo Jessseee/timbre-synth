@@ -3,7 +3,7 @@ import type { Sample } from '$lib/frontend/Synth';
 import { error } from '@sveltejs/kit';
 import { type DrizzleClient, table } from '$lib/server/db';
 import { eq, inArray, sql } from 'drizzle-orm';
-import { type Task, descriptorNames, type Descriptor } from '$lib/frontend/Task';
+import { type RankingTask, descriptorNames, type Descriptor } from '$lib/frontend/Task';
 
 function prng(seed = 42) {
 	let s = seed >>> 0;
@@ -60,7 +60,7 @@ export async function createTasks(
 		seed?: number;
 		descriptor?: Descriptor;
 	}
-): Promise<Task[]> {
+): Promise<RankingTask[]> {
 	const { groupSize = 7, avgAppearances = 5, seed = 42, descriptor = 'brightness' } = options ?? {};
 
 	if (!Array.isArray(samples) || samples.length === 0) return [];
@@ -92,7 +92,7 @@ export async function createTasks(
 	for (let i = 0; i < remainder; i++) quotas[index[i]] += 1;
 
 	// Generate tasks by weighted sampling on remaining quotas
-	const tasks: Task[] = [];
+	const tasks: RankingTask[] = [];
 	// Precompute a stable order of items to keep selection deterministic across equal weights
 	const stableOrder = [...Array(N).keys()];
 	shuffleInPlace(stableOrder, rnd);

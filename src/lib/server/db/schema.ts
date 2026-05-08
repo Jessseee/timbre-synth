@@ -55,13 +55,13 @@ export const taskSoundsRelations = relations(taskSounds, ({ one }) => ({
 export const annotations = sqliteTable(
 	'annotations',
 	{
-		rank: text({ mode: 'json' }).$type<Array<{ id: number; sound: string }>>().notNull(),
+		data: text('data', { mode: 'json' }).$type<any>().notNull(),
+		type: text('type').default("ranking").notNull(),
 		annotatorId: text('annotator_id')
 			.notNull()
 			.references(() => session.id),
 		taskId: text('task_id')
-			.notNull()
-			.references(() => tasks.id),
+			.notNull(),
 		status: text().$type<'pending' | 'done'>().notNull(),
 		createdAt: integer({ mode: 'timestamp_ms' }).notNull()
 	},

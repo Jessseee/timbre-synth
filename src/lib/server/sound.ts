@@ -3,11 +3,11 @@ const toRankIndex = (rank: Array<{ id: number; sound: string }>) =>
 
 export const orderSoundsByAnnotation = (
 	initSounds: { soundId: string }[],
-	annotation?: { rank: Array<{ id: number; sound: string }> }
+	annotation?: { data: Array<{ id: number; sound: string }> }
 ) => {
 	const sounds = initSounds.map(({ soundId }, index) => ({ id: index, sound: soundId }));
 
-	const rank = annotation?.rank ?? [];
+	const rank = annotation?.data ?? [];
 	if (!rank.length) return sounds;
 	const rankIndex = toRankIndex(rank);
 	const fallback = rank.length;

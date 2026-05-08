@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { error} from '@sveltejs/kit';
 import path from 'node:path';
 
-export const GET = async ({ params, platform, locals }) => {
+export const GET = async ({ params, platform }) => {
 	const filename = `${params.id}.wav`;
 	if (platform?.env.R2) {
 		const file = await platform.env.R2.get(filename);

@@ -20,7 +20,7 @@
 
 <table class="min-w-[300px]">
 	<tbody>
-		{#each annotations as { taskId, annotatorId, rank, status }, i (annotatorId)}
+		{#each annotations as { taskId, annotatorId, data, status }, i (annotatorId)}
 			{#if i === 0 || open}
 				<tr class="not-last:border-b border-gray-200">
 					<td>
@@ -35,7 +35,7 @@
 						{/if}
 					</td>
 					<td class="text-xs px-2">{annotatorId.slice(-10, -1)}</td>
-					{#each rank as { id, sound } (id)}
+					{#each data as { id, sound } (id)}
 						<td class="p-1 text-center text-xs">
 							<p class="mb-1">{id + 1}</p>
 							<AudioPlayer

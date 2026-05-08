@@ -7,8 +7,7 @@
 	import Card from '$lib/components/Card.svelte';
 	import { paramNames, type Sample, type MidiItem } from '$lib/frontend/Synth';
 	import type { PageProps } from './$types';
-	import MidiList from './MidiList.svelte';
-	import ButtonWithConfirmPrompt from '$lib/components/ButtonWithConfirmPrompt.svelte';
+	import Sequencer from '$lib/components/Sequencer.svelte';
 
 	let { data }: PageProps = $props();
 
@@ -26,9 +25,11 @@
 
 	let CreateAnnotationTasksBtn: HTMLButtonElement | undefined = $state();
 
+	let pitch: number = $state(40);
+
 	let notes: MidiItem[] = $state([
-		{ midi: 52, dur: 0.2 },
-		{ midi: 58, dur: 0.2 }
+		{ note: 5, dur: 0.2 },
+		{ note: 8, dur: 0.2 }
 	]);
 
 	let errorMsg = $state('');
@@ -118,7 +119,7 @@
 
 	function playSample(sample: Sample) {
 		if (!audio) audio = new Audio();
-		audio.src = `/api/sound/${sample.id}`;
+		audio.src = `/sound/${sample.id}`;
 		audio.currentTime = 0;
 		audio.play();
 	}
@@ -203,6 +204,7 @@
 		{#if selected}
 			<div class="absolute right-0 border-gray-200 space-y-2">
 				<div class="overflow-auto border border-gray-100">
+					<p class="text-xs">{selected.id}</p>
 					<table class="w-full text-xs">
 						<thead class="bg-gray-50 sticky top-0">
 							<tr>
@@ -234,7 +236,7 @@
 				<div class="min-w-full text-xs">
 					<code class="block whitespace-pre-wrap break-words rounded bg-gray-100 px-1.5 py-1">
 						{'[\n'}{selected.notes
-							?.map((item) => `\t{ midi: ${item.midi}, dur: ${item.dur} `)
+							?.map((item) => `\t{ midi: ${item.note}, dur: ${item.dur} `)
 							.join('}, \n')}{selected.notes?.length ? '}' : ''}{'\n]'}
 					</code>
 				</div>
@@ -291,7 +293,7 @@
 				<p class="text-sm w-max-content">{errorMsg}</p>
 			</div>
 		{/if}
-		<Card header="PCA Settings">
+		<Card header="PCA Settings" collapsed={false}>
 			<div class="p-4">
 				<MultiSelect label="Color by" options={paramNames} bind:selected={colorKeys} />
 				<MultiSelect
@@ -305,12 +307,31 @@
 		</Card>
 		<Card header="MIDI" class="mt-5">
 			<div class="p-4">
-				<MidiList bind:value={notes} />
+				<div class="flex flex-row justify-center">
+					<div class="flex flex-row justify-center">
+						<div class="mt-2 text-center w-50 -ml-20 -mr-15">
+							<span class="text-sm inline-block mb-3">pitch</span>
+							<div class="flex justify-center items-center h-50">
+								<input
+									type="range"
+									id="range"
+									min={20}
+									max={80}
+									step="1"
+									class="h-0.5 w-100 hover:cursor-grab active:cursor-grabbing appearance-none bg-gray-400 accent-blue-500 disabled:accent-gray-400 -rotate-90"
+									ondblclick={() => pitch = 40}
+									bind:value={pitch}
+								/>
+							</div>
+						</div>
+						<Sequencer bind:value={notes} pitch={pitch} expandable />
+					</div>
+				</div>
 			</div>
 		</Card>
-		<Card collapsed={false} header="Synth Settings" class="mt-5">
+		<Card collapsable={false} header="Synth Settings" class="mt-5">
 			<div class="p-4">
-				<Synth callback={synthCallback} bind:notes />
+				<Synth callback={synthCallback} bind:notes pitch={pitch} />
 			</div>
 		</Card>
 
@@ -331,13 +352,7 @@
 						Show tasks
 					</a>
 				</div>
-
-				<ButtonWithConfirmPrompt
-					action="?/clearSounds"
-					class="block w-full text-center px-7 py-1 rounded-lg bg-red-500 text-white hover:cursor-pointer hover:bg-red-700 disabled:cursor-auto"
-				>
-					Delete all sounds
-				</ButtonWithConfirmPrompt>
+				<a class="block w-full text-center py-1 rounded-lg border-blue-500 border-3 text-blue-500 hover:cursor-pointer hover:bg-blue-500 hover:text-white" href="/timbre-synth">Timbre synth</a>
 			</div>
 		</div>
 	</div>

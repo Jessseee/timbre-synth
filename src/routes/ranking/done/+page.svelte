@@ -1,6 +1,3 @@
-<script>
-</script>
-
 <svelte:head>
 	<title>Timbre - Done!</title>
 </svelte:head>
@@ -23,7 +20,7 @@
 			<p class="mb-2">If you are willing to take on more tasks press the button below.</p>
 			<a
 				class="text-center block bg-green-500 text-white px-4 py-2 rounded font-bold hover:cursor-pointer hover:bg-green-700 w-full disabled:bg-green-300 disabled:cursor-default"
-				href="/"
+				href="/ranking"
 			>
 				Give me more tasks!
 			</a>

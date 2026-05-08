@@ -6,7 +6,6 @@ export const GET = async ({ locals }) => {
 	const tasks = await locals.db.query.annotations.findMany({
 		with: {
 			annotator: true,
-			task: true
 		}
 	})
 	return json(tasks)
@@ -35,19 +34,19 @@ export const POST = async ({ request, locals }) => {
 	} = await request.json();
 
 	for (const task of tasks) {
-		const rank = task.sounds;
+		const data = task.sounds;
 		await locals.db
 			.insert(table.annotations)
 			.values({
 				annotatorId: annotatorId,
 				taskId: task.id,
 				createdAt: new Date(),
-				rank,
+				data,
 				status
 			})
 			.onConflictDoUpdate({
 				target: [table.annotations.taskId, table.annotations.annotatorId],
-				set: { status, rank }
+				set: { status, data }
 			});
 	}
 

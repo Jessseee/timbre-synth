@@ -28,6 +28,6 @@ export const actions = {
 			return fail(500, { error: 'Failed to submit questionnaire.' });
 		}
 
-		redirect(302, '/done');
+		redirect(302, '/ranking/done');
 	}
 };

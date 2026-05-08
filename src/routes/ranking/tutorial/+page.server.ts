@@ -1,7 +1,7 @@
 import { validateTurnstileClientToken } from '$lib/server/turnstile';
 import { fail, redirect } from '@sveltejs/kit';
 import { getTutorialTasks } from '$lib/server/task';
-import { orderSoundsByAnnotation } from '$lib/server/sound';
+import type { Descriptor } from '$lib/frontend/Task';
 
 export const load = async ({ locals }) => {
 	const tasks = await getTutorialTasks(locals.db);
@@ -9,7 +9,7 @@ export const load = async ({ locals }) => {
 	return {
 		tasks: tasks.map(({ id, descriptor, sounds }) => ({
 			id,
-			descriptor,
+			descriptor: descriptor as Descriptor,
 			sounds: sounds.map(({ soundId }, index) => ({ id: index, sound: soundId }))
 		}))
 	};
@@ -33,6 +33,6 @@ export const actions = {
 			})
 		});
 
-		return redirect(303, '/');
+		return redirect(303, '/ranking');
 	}
 };

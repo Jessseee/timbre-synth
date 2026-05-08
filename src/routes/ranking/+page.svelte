@@ -1,5 +1,5 @@
 <script>
-	import Annotator from '$lib/components/Annotator.svelte';
+	import Annotator from '$lib/components/RankingAnnotator.svelte';
 
 	const { data, form } = $props();
 </script>

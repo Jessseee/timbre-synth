@@ -1,0 +1,26 @@
+[
+	{
+		"id": "small-private",
+		"name": "Cleaning Robot",
+		"description": "A compact household robot vacuum with a quiet, practical personality. It feels like a cautious helper, focused on keeping the home clean while staying mostly out of the way.",
+		"imageUrl": "/robots/roomba.png"
+	},
+	{
+		"id": "large-private",
+		"name": "Home Service Robot",
+		"description": "A tall home service robot with a calm, attentive personality. Its upright body, arm-like features, and sensor-equipped head makes it able to move through indoor spaces, help with simple household tasks, carry items, and support daily routines.",
+		"imageUrl": "/robots/moro.png"
+	},
+	{
+		"id": "small-public",
+		"name": "Robot Trashcan",
+		"description": "A small trash-collection robot with a friendly, approachable personality. Its wheeled cylindrical body is designed to hold litter or waste. It can move through public spaces and proactively approach people who appear to be holding trash, offering a convenient place to dispose of it.",
+		"imageUrl": "/robots/trash.png"
+	},
+	{
+		"id": "large-public",
+		"name": "Delivery robot",
+		"description": "A large delivery robot with a bold, futuristic personality. Its sturdy wheeled body, lights, and rounded features make it noticeable and approachable on sidewalks or streets. It is designed to transport goods to people’s homes or meet them outside, acting like a mobile courier.",
+		"imageUrl": "/robots/dru.png"
+	}
+]

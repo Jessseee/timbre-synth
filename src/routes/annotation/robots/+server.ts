@@ -5,19 +5,20 @@ export const POST = async ({ request, locals }) => {
 	const { tasks, status }: { tasks: any; status: 'pending' | 'done' } = await request.json();
 
 	for (const task of tasks) {
-		const rank = task.sounds;
+		const data = {sound: task.sound, soundId: task.soundId};
 		await locals.db
 			.insert(table.annotations)
 			.values({
 				annotatorId: locals.session!.id,
 				taskId: task.id,
 				createdAt: new Date(),
-				rank,
+				type: "robot",
+				data,
 				status
 			})
 			.onConflictDoUpdate({
 				target: [table.annotations.taskId, table.annotations.annotatorId],
-				set: { status, rank }
+				set: { status, data }
 			});
 	}
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Annotator from '$lib/components/Annotator.svelte';
+	import Annotator from '$lib/components/RankingAnnotator.svelte';
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte';
 	import { type DndEvent, dndzone } from 'svelte-dnd-action';
 

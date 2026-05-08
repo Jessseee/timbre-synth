@@ -3,20 +3,22 @@ import * as Tone from 'tone';
 export type Sample = { id: string; params: Params; notes: MidiItem[] | null };
 
 export const paramNames = ['harmonics', 'vibratoFreq', 'vibratoDepth', 'release'];
+export const paramNamesHuman = ['harmonics', 'vibrato freq.', 'vibrato depth', 'release']
 
 export type Params = {
 	[K in (typeof paramNames)[number]]: number;
 };
 
-type Note = { dur: number; midi?: number; vel?: number; porta?: number };
+type Note = { dur: number; note: number | null; vel?: number; porta?: number };
 
-export type MidiItem = { midi: number; dur: number };
+export type MidiItem = { note: number | null; dur: number };
 
 export interface Synth {
 	start(): Promise<void>;
-	trigger(sequence: Note[], when?: number): void;
+	trigger(sequence: Note[], pitch?: number, callback?: (step: number) => void): Promise<void>;
 	dispose(): void;
 	readonly params: Params;
+	readonly analyser: Tone.Analyser;
 }
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
@@ -63,56 +65,77 @@ export async function createSynth(p: Params): Promise<Synth> {
 
 	crossfade.chain(vibrato, envelope);
 
-	const output = envelope.toDestination();
+	const analyser = new Tone.Analyser('waveform', 2048);
+	envelope.connect(analyser);
+	analyser.toDestination();
 
-	const modules = [...source, crossfade, envelope, vibrato];
+	const modules = [...source, crossfade, envelope, vibrato, analyser];
 
-	function trigger(sequence: Note[], when = Tone.now()) {
+	async function trigger(
+		sequence: Note[],
+		pitch = 45,
+		callback?: (step: number) => void
+	): Promise<void> {
 		let t = 0;
 		let sustaining = false;
+		let lastReleaseTime = Tone.now();
 
 		for (let i = 0; i < sequence.length; i++) {
 			const step = sequence[i];
 			const stepDur = Math.max(0, step.dur);
-			const start = when + t;
+			const start = Tone.now() + t;
 			const end = start + stepDur;
 
-			if (!step.midi) {
+			if (callback) {
+				Tone.Draw.schedule(() => callback(i), start);
+			}
+
+			if (typeof step.note !== 'number') {
 				if (sustaining) {
 					envelope.triggerRelease(start);
 					sustaining = false;
+					lastReleaseTime = start;
 				}
 				t += stepDur;
 				continue;
 			}
 
-			const freq = Tone.Frequency(step.midi, 'midi').toFrequency();
+			const freq = Tone.Frequency(pitch + step.note, 'midi').toFrequency();
 			const vel = step.vel ?? 0.9;
 			const porta = step.porta ?? 0.05;
 
 			if (!sustaining) {
-				// First note in a phrase — start new envelope
 				source.forEach((osc) => osc.frequency.setValueAtTime(freq, start));
 				envelope.triggerAttack(start, vel);
 				sustaining = true;
 			} else {
-				// Legato transition: glide smoothly to the new pitch
 				source.forEach((osc) => {
 					osc.frequency.cancelAndHoldAtTime(start);
 					osc.frequency.linearRampTo(freq, porta, start);
 				});
 			}
 
-			// Check whether to release at end of note or keep sustaining
 			const next = sequence[i + 1];
-			const shouldRelease = !next || !next.midi;
+			const shouldRelease = !next || next.note == null;
 			if (shouldRelease) {
-				envelope.triggerRelease(Math.max(start, end - 0.02));
+				const releaseAt = Math.max(start, end - 0.02);
+				envelope.triggerRelease(releaseAt);
 				sustaining = false;
+				lastReleaseTime = releaseAt;
 			}
 
 			t += stepDur;
 		}
+
+		const releaseTail =
+			typeof envelope.release === 'number'
+				? envelope.release
+				: Tone.Time(envelope.release).toSeconds();
+
+		const doneAt = lastReleaseTime + releaseTail;
+		const delayMs = Math.max(0, doneAt - Tone.now()) * 1000;
+
+		await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
 	}
 
 	function dispose() {
@@ -130,6 +153,9 @@ export async function createSynth(p: Params): Promise<Synth> {
 		dispose,
 		get params() {
 			return p;
+		},
+		get analyser() {
+			return analyser;
 		}
 	};
 }
@@ -160,10 +186,10 @@ export function makeParamSets(n: number, seed = 1234): Params[] {
 
 	const S = lhs(n, paramNames.length, seed);
 	return S.map((row) => {
-		const obj: any = {};
+		const obj: Params = {};
 		row.forEach((x, j) => {
 			obj[paramNames[j]] = x;
 		});
-		return obj as Params;
+		return obj;
 	});
 }

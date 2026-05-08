@@ -1,0 +1,1 @@
+ALTER TABLE `annotations` ADD `type` text DEFAULT 'ranking' NOT NULL;
