@@ -1,0 +1,18 @@
+[
+	{
+		"id": "small-private",
+		"imageUrl": "/robots/roomba.png"
+	},
+	{
+		"id": "large-private",
+		"imageUrl": "/robots/moro.png"
+	},
+	{
+		"id": "small-public",
+		"imageUrl": "/robots/trash.png"
+	},
+	{
+		"id": "large-public",
+		"imageUrl": "/robots/dru.png"
+	}
+]

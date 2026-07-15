@@ -2,15 +2,7 @@ import { type MidiItem, type Params } from './Synth';
 
 export const descriptorNames = ['brightness', 'resonance', 'roughness'] as const;
 
-export const descriptorMinMax: Record<(typeof descriptorNames)[number], string[]> = {"brightness": ["dull", "bright"], 'resonance': ["dry", "resonant"], "roughness": ["smooth", "rough"]} as const;
-
 export type Descriptor = (typeof descriptorNames)[number];
-
-export type RankingTask = {
-	id: string;
-	descriptor: Descriptor;
-	sounds: string[];
-};
 
 export type SynthPatch = {
 	id?: string;
@@ -20,14 +12,15 @@ export type SynthPatch = {
 	notes: MidiItem[];
 };
 
-
 export type RobotTask = {
 	id: string;
 	robot: {
-		name: string;
-		description: string;
 		imageUrl: string;
+		icon: string;
+		name: () => string;
+		summary: () => string;
+		description: () => string;
 	};
 	sound: SynthPatch;
-	soundId: string;
+	soundId: string | null;
 };

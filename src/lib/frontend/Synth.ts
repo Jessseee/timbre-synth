@@ -3,7 +3,7 @@ import * as Tone from 'tone';
 export type Sample = { id: string; params: Params; notes: MidiItem[] | null };
 
 export const paramNames = ['harmonics', 'vibratoFreq', 'vibratoDepth', 'release'];
-export const paramNamesHuman = ['harmonics', 'vibrato freq.', 'vibrato depth', 'release']
+export const paramNamesHuman = ['harmonics', 'vibrato freq.', 'vibrato depth', 'release'];
 
 export type Params = {
 	[K in (typeof paramNames)[number]]: number;
@@ -15,7 +15,11 @@ export type MidiItem = { note: number | null; dur: number };
 
 export interface Synth {
 	start(): Promise<void>;
-	trigger(sequence: Note[], pitch?: number, callback?: (step: number) => void): Promise<void>;
+	trigger(
+		sequence: Note[],
+		pitch?: number,
+		callback?: (step: number | null) => void
+	): Promise<void>;
 	dispose(): void;
 	readonly params: Params;
 	readonly analyser: Tone.Analyser;
@@ -74,7 +78,7 @@ export async function createSynth(p: Params): Promise<Synth> {
 	async function trigger(
 		sequence: Note[],
 		pitch = 45,
-		callback?: (step: number) => void
+		callback?: (step: number | null) => void
 	): Promise<void> {
 		let t = 0;
 		let sustaining = false;
@@ -132,7 +136,13 @@ export async function createSynth(p: Params): Promise<Synth> {
 				? envelope.release
 				: Tone.Time(envelope.release).toSeconds();
 
-		const doneAt = lastReleaseTime + releaseTail;
+		const sequenceEnd = Tone.now() + t;
+		const doneAt = Math.max(sequenceEnd, lastReleaseTime + releaseTail);
+
+		if (callback) {
+			Tone.Draw.schedule(() => callback(null), doneAt);
+		}
+
 		const delayMs = Math.max(0, doneAt - Tone.now()) * 1000;
 
 		await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
