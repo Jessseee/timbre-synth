@@ -27,9 +27,15 @@ function updateDocumentLocale(locale: _Locale) {
 	document.documentElement.dir = getTextDirection(locale);
 }
 
+export function localeForPathname(pathname: string): _Locale | undefined {
+	const locale = pathname.split('/').filter(Boolean)[0];
+	return toLocale(locale);
+}
+
 export class Locale {
 	#current: _Locale = $state(
-		toLocale(browser && localeCookie()) ??
+		localeForPathname(browser ? window.location.pathname : '') ??
+			toLocale(browser && localeCookie()) ??
 			toLocale(browser && document.querySelector('html')?.lang) ??
 			baseLocale
 	);

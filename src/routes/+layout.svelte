@@ -1,5 +1,7 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { getLocale, locales, setLocale, type Locale } from '$lib/paraglide/runtime';
+	import { localeForPathname } from '$lib/paraglide.svelte';
 	import '../app.css';
 	import * as m from '$lib/paraglide/messages';
 
@@ -7,6 +9,7 @@
 
 	let currentLocale = $derived(getLocale());
 	let nextLocale = $derived(locales.find((locale) => locale !== currentLocale) ?? currentLocale);
+	let routeLocale = $derived(localeForPathname(page.url.pathname));
 
 	const flagIconClass: Record<Locale, string> = {
 		en: 'icon-[circle-flags--gb]',
@@ -16,19 +19,27 @@
 	function switchLocale() {
 		setLocale(nextLocale as Locale, { reload: false });
 	}
+
+	$effect(() => {
+		if (routeLocale && currentLocale !== routeLocale) {
+			setLocale(routeLocale, { reload: false });
+		}
+	});
 </script>
 
 <svelte:head><title>Timbre Synth</title></svelte:head>
 
-<button
-	type="button"
-	onclick={switchLocale}
-	class="fixed top-3 right-3 z-50 inline-flex items-center gap-2 rounded bg-white px-3 py-1.5 text-sm font-bold uppercase text-blue-600 shadow-sm ring-1 ring-blue-200 hover:bg-blue-50 hover:cursor-pointer"
-	aria-label={`Switch language to ${nextLocale}`}
->
-	<span class="{flagIconClass[nextLocale as Locale]} text-lg" aria-hidden="true"></span>
-	<span>{nextLocale}</span>
-</button>
+{#if !routeLocale}
+	<button
+		type="button"
+		onclick={switchLocale}
+		class="fixed top-3 right-3 z-50 inline-flex items-center gap-2 rounded bg-white px-3 py-1.5 text-sm font-bold uppercase text-blue-600 shadow-sm ring-1 ring-blue-200 hover:bg-blue-50 hover:cursor-pointer"
+		aria-label={`Switch language to ${nextLocale}`}
+	>
+		<span class="{flagIconClass[nextLocale as Locale]} text-lg" aria-hidden="true"></span>
+		<span>{nextLocale}</span>
+	</button>
+{/if}
 
 {@render children()}
 
