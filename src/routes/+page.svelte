@@ -2,13 +2,10 @@
 	import MultiPageForm from '$lib/components/MultiPageForm.svelte';
 	import TimbreSynth from '$lib/components/TimbreSynth.svelte'
 	import {
-		descriptorNames,
-		type Descriptor,
 		type RobotTask,
 		type SynthPatch
 	} from '$lib/frontend/Task';
-	import { predictDescriptorsFromParams } from '$lib/frontend/Predictor';
-	import { paramNames, type Params } from '$lib/frontend/Synth';
+	import { createDefaultSynthPatch } from '$lib/frontend/Synth';
 	import * as m from '$lib/paraglide/messages';
 
 	const taskStorageKey = 'xysynth:robot-sounds:v1';
@@ -47,41 +44,6 @@
 			description: () => m.robots_delivery_description()
 		}
 	];
-
-	function createDefaultParams(): Params {
-		return paramNames.reduce((acc, param) => {
-			acc[param] = 0.5;
-			return acc;
-		}, {} as Params);
-	}
-
-	function createDefaultDescriptors(params: Params): Record<Descriptor, number> {
-		try {
-			return predictDescriptorsFromParams(params);
-		} catch {
-			return descriptorNames.reduce(
-				(acc, descriptor) => {
-					acc[descriptor] = 0;
-					return acc;
-				},
-				{} as Record<Descriptor, number>
-			);
-		}
-	}
-
-	function createDefaultSynthPatch(): SynthPatch {
-		const params = createDefaultParams();
-
-		return {
-			params,
-			descriptors: createDefaultDescriptors(params),
-			pitch: 51,
-			notes: [
-				{ note: 2, dur: 0.2 },
-				{ note: 8, dur: 0.2 }
-			]
-		};
-	}
 
 	const tasks: RobotTask[] = robots.map((robot) => ({
 		id: robot.id,

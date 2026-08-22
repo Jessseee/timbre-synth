@@ -1,4 +1,6 @@
 import * as Tone from 'tone';
+import { type Descriptor, descriptorNames, type SynthPatch } from '$lib/frontend/Task';
+import { predictDescriptorsFromParams } from '$lib/frontend/Predictor';
 
 export type Sample = { id: string; params: Params; notes: MidiItem[] | null };
 
@@ -202,4 +204,39 @@ export function makeParamSets(n: number, seed = 1234): Params[] {
 		});
 		return obj;
 	});
+}
+
+function createDefaultParams(): Params {
+	return paramNames.reduce((acc, param) => {
+		acc[param] = 0.5;
+		return acc;
+	}, {} as Params);
+}
+
+function createDefaultDescriptors(params: Params): Record<Descriptor, number> {
+	try {
+		return predictDescriptorsFromParams(params);
+	} catch {
+		return descriptorNames.reduce(
+			(acc, descriptor) => {
+				acc[descriptor] = 0;
+				return acc;
+			},
+			{} as Record<Descriptor, number>
+		);
+	}
+}
+
+export function createDefaultSynthPatch(): SynthPatch {
+	const params = createDefaultParams();
+
+	return {
+		params,
+		descriptors: createDefaultDescriptors(params),
+		pitch: 51,
+		notes: [
+			{ note: 2, dur: 0.2 },
+			{ note: 8, dur: 0.2 }
+		]
+	};
 }
