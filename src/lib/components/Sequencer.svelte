@@ -15,11 +15,13 @@
 		value = $bindable(),
 		pitch,
 		currentStep = $bindable(),
+		readOnly = false,
 		class: className = ''
 	}: {
 		value: MidiItem[];
 		pitch: number;
 		currentStep?: number | null;
+		readOnly?: boolean;
 		class?: string;
 	} = $props();
 
@@ -47,6 +49,8 @@
 	}
 
 	function commit(next: MidiItem[]) {
+		if (readOnly) return;
+
 		value = normalizeSteps(next);
 	}
 
@@ -61,6 +65,8 @@
 	}
 
 	function toggleCell(row: number, col: number) {
+		if (readOnly) return;
+
 		const note = noteForRow(row);
 		const next = normalizeSteps(gridValue);
 
@@ -93,7 +99,7 @@
 			const midi = pitch + (rowCount - 1 + bufferRows - i);
 			return {
 				id: midi,
-				label: Frequency(midi, "midi").toNote()
+				label: Frequency(midi, 'midi').toNote()
 			};
 		})
 	);
@@ -126,6 +132,7 @@
 				{#each columns as col}
 					<button
 						type="button"
+						disabled={readOnly}
 						aria-label={`Step ${col + 1}, note ${noteForRow(row)}`}
 						aria-pressed={isActive(row, col)}
 						class:bg-blue-800={currentStep === col}

@@ -15,6 +15,15 @@ type Note = { dur: number; note: number | null; vel?: number; porta?: number };
 
 export type MidiItem = { note: number | null; dur: number };
 
+export type SynthPlaybackState = {
+	playing: boolean;
+	currentStep: number | null;
+};
+
+export type SynthOptions = {
+	audible?: boolean;
+};
+
 export interface Synth {
 	start(): Promise<void>;
 	trigger(
@@ -40,7 +49,10 @@ export function parseParams(p: Params) {
 	};
 }
 
-export async function createSynth(p: Params): Promise<Synth> {
+export async function createSynth(
+	p: Params,
+	{ audible = true }: SynthOptions = {}
+): Promise<Synth> {
 	const params = parseParams(p);
 
 	const source = [
@@ -73,9 +85,14 @@ export async function createSynth(p: Params): Promise<Synth> {
 
 	const analyser = new Tone.Analyser('waveform', 2048);
 	envelope.connect(analyser);
-	analyser.toDestination();
 
-	const modules = [...source, crossfade, envelope, vibrato, analyser];
+	// Keep muted synths connected so the Web Audio graph is processed and the
+	// analyser remains active, while ensuring they cannot reach the speakers.
+	const output = new Tone.Gain(audible ? 1 : 0);
+	analyser.connect(output);
+	output.toDestination();
+
+	const modules = [...source, crossfade, envelope, vibrato, analyser, output];
 
 	async function trigger(
 		sequence: Note[],

@@ -2,6 +2,16 @@
 	import { afterNavigate, goto, pushState, replaceState } from '$app/navigation';
 	import { browser } from '$app/environment';
 	import { page } from '$app/state';
+	import {
+		embedSyncConfig,
+		embedSyncRole,
+		isEmbedSyncMessage,
+		synthPlaybackSnapshot,
+		type EmbedSyncMessage,
+		type EmbedSyncRole,
+		type EmbedSyncState
+	} from '$lib/frontend/EmbedSync';
+	import type { SynthPlaybackState } from '$lib/frontend/Synth';
 	import { onMount, type Snippet } from 'svelte';
 
 	type TaskContext<TTask> = {
@@ -10,6 +20,9 @@
 		tasks: TTask[];
 		markChanged: () => void;
 		completed: boolean;
+		readOnly: boolean;
+		playbackState: SynthPlaybackState;
+		onPlaybackChange: (playback: SynthPlaybackState) => void;
 	};
 
 	type Props<TTask> = {
@@ -80,11 +93,25 @@
 	let completed: boolean[] = $state(initialCompleted());
 	let submitting = $state(false);
 	let initializedTaskUri = false;
+	const initialUrl = browser ? new URL(window.location.href) : page.url;
+	let syncRole: EmbedSyncRole | null = $state(embedSyncRole(initialUrl));
+	let syncChannel: BroadcastChannel | undefined;
+	let syncReady = $state(false);
+	let playbackState: SynthPlaybackState = $state({ playing: false, currentStep: null });
 
 	let curTask = $derived(tasks[curTaskId]);
 	let currentCompleted = $derived(completed[curTaskId] === true);
+	let readOnly = $derived(syncRole === 'display');
+
+	function onPlaybackChange(playback: SynthPlaybackState) {
+		if (syncRole === 'controller') {
+			playbackState = playback;
+		}
+	}
 
 	function markChanged() {
+		if (readOnly) return;
+
 		completed[curTaskId] = true;
 		persistTasks();
 	}
@@ -119,6 +146,15 @@
 		const currentUrl = currentBrowserUrl();
 		const currentHref = `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`;
 		const nextUrl = new URL(href, currentUrl);
+
+		// Task navigation owns the task parameter, not the presentation connection.
+		// Keep the latter in the iframe URL so reloads retain their assigned role.
+		for (const parameter of ['sync', 'role']) {
+			if (!nextUrl.searchParams.has(parameter) && currentUrl.searchParams.has(parameter)) {
+				nextUrl.searchParams.set(parameter, currentUrl.searchParams.get(parameter) ?? '');
+			}
+		}
+
 		const nextHref = `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`;
 
 		if (nextHref === currentHref) return;
@@ -131,6 +167,8 @@
 	}
 
 	function goToTask(taskId: number, mode: 'push' | 'replace' = 'push') {
+		if (readOnly) return;
+
 		curTaskId = clampTaskId(taskId);
 		setTaskUri(curTaskId, mode);
 	}
@@ -146,7 +184,7 @@
 	}
 
 	async function submitTasks() {
-		if (!currentCompleted || submitting) return;
+		if (readOnly || !currentCompleted || submitting) return;
 
 		submitting = true;
 
@@ -170,6 +208,9 @@
 	});
 
 	onMount(() => {
+		const syncConfig = embedSyncConfig(currentBrowserUrl());
+		syncRole = embedSyncRole(currentBrowserUrl());
+
 		function syncTaskFromLocation() {
 			const taskId = taskIdFromUri(currentBrowserUrl());
 			if (taskId !== null) {
@@ -177,15 +218,86 @@
 			}
 		}
 
-		restoreTasks();
+		if (!readOnly) {
+			restoreTasks();
+		}
 		syncTaskFromLocation();
 
 		window.addEventListener('popstate', syncTaskFromLocation);
 
+		if (syncConfig && 'BroadcastChannel' in window) {
+			syncChannel = new BroadcastChannel(syncConfig.channelName);
+			syncChannel.addEventListener('message', receiveSyncMessage);
+			syncReady = true;
+
+			if (syncConfig.role === 'controller') {
+				publishSyncState();
+			} else {
+				postSyncMessage({ version: 1, type: 'request-state' });
+			}
+		}
+
 		return () => {
 			window.removeEventListener('popstate', syncTaskFromLocation);
+			syncReady = false;
+			syncChannel?.removeEventListener('message', receiveSyncMessage);
+			syncChannel?.close();
+			syncChannel = undefined;
 		};
 	});
+
+	function postSyncMessage(message: EmbedSyncMessage) {
+		syncChannel?.postMessage(message);
+	}
+
+	function currentSyncState(): EmbedSyncState | null {
+		try {
+			return {
+				tasks: serializeTaskState?.(tasks) ?? JSON.stringify(tasks),
+				taskId: curTaskId,
+				completed: [...completed],
+				playback: synthPlaybackSnapshot(playbackState)
+			};
+		} catch {
+			return null;
+		}
+	}
+
+	function publishSyncState() {
+		if (!syncReady || syncRole !== 'controller') return;
+
+		const state = currentSyncState();
+		if (state) {
+			postSyncMessage({ version: 1, type: 'state', state });
+		}
+	}
+
+	function applySyncState(state: EmbedSyncState) {
+		if (syncRole !== 'display') return;
+
+		try {
+			const nextTasks = deserializeTaskState?.(state.tasks, tasks) ?? JSON.parse(state.tasks);
+			if (!Array.isArray(nextTasks) || nextTasks.length !== tasks.length) return;
+
+			tasks = nextTasks;
+			completed = tasks.map((_, index) => state.completed[index] === true);
+			playbackState = state.playback;
+			curTaskId = clampTaskId(state.taskId);
+			setTaskUri(curTaskId, 'replace');
+		} catch {
+			// Ignore malformed or stale messages and keep the last valid display state.
+		}
+	}
+
+	function receiveSyncMessage(event: MessageEvent<unknown>) {
+		if (!isEmbedSyncMessage(event.data)) return;
+
+		if (event.data.type === 'request-state') {
+			publishSyncState();
+		} else if (event.data.type === 'state') {
+			applySyncState(event.data.state);
+		}
+	}
 
 	$effect(() => {
 		if (!browser) return;
@@ -195,6 +307,10 @@
 		if (taskId !== null) {
 			curTaskId = taskId;
 		}
+	});
+
+	$effect(() => {
+		publishSyncState();
 	});
 </script>
 
@@ -248,7 +364,11 @@
 	</div>
 {/snippet}
 
-<div class="p-5 lg:h-[calc(100vh-2em)] w-full xl:w-max mx-auto flex flex-wrap gap-4 justify-center">
+<div
+	inert={readOnly}
+	data-embed-role={syncRole ?? undefined}
+	class="p-5 lg:h-[calc(100vh-2em)] w-full xl:w-max mx-auto flex flex-wrap gap-4 justify-center"
+>
 	<div class="max-w-md space-y-2">
 		{#if curTask}
 			{@render instructions({
@@ -256,7 +376,10 @@
 				taskId: curTaskId,
 				tasks,
 				markChanged,
-				completed: completed[curTaskId] === true
+				completed: completed[curTaskId] === true,
+				readOnly,
+				playbackState,
+				onPlaybackChange
 			})}
 		{/if}
 
@@ -275,7 +398,10 @@
 				taskId: curTaskId,
 				tasks,
 				markChanged,
-				completed: completed[curTaskId] === true
+				completed: completed[curTaskId] === true,
+				readOnly,
+				playbackState,
+				onPlaybackChange
 			})}
 
 			<div class="hidden xl:flex flex-col items-center">

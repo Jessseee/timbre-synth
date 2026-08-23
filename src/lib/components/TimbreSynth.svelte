@@ -4,7 +4,8 @@
 		paramNames,
 		paramNamesHuman,
 		type Params,
-		type Synth
+		type Synth,
+		type SynthPlaybackState
 	} from '$lib/frontend/Synth';
 	import { type Descriptor, descriptorNames, type SynthPatch } from '$lib/frontend/Task';
 	import {
@@ -15,6 +16,7 @@
 	import Sequencer from '$lib/components/Sequencer.svelte';
 	import Analyser from './Analyser.svelte';
 	import * as m from '$lib/paraglide/messages';
+	import { onDestroy } from 'svelte';
 
 	const minMidi = 40;
 	const maxMidi = 62;
@@ -22,21 +24,72 @@
 
 	let {
 		value = $bindable(),
-		onChange
+		onChange,
+		onPlaybackChange,
+		mirroredPlayback,
+		readOnly = false
 	}: {
 		value: SynthPatch;
 		onChange?: () => void;
+		onPlaybackChange?: (playback: SynthPlaybackState) => void;
+		mirroredPlayback?: SynthPlaybackState;
+		readOnly?: boolean;
 	} = $props();
 
 	let errorMsg = $state('');
 	let busy = $state(false);
 	let synth: Synth | undefined = $state();
 	let oldSynth: Synth | undefined = $state();
+	let mirroredSynth: Synth | undefined;
 	let updatingFrom: 'params' | 'descriptors' | null = null;
 	let currentStep: number | null = $state(null);
 	let playRunId = 0;
+	let mirroredRunId = 0;
+	let mirroredWasPlaying = false;
 
 	let mounted = false;
+
+	function setPlaybackState(playback: SynthPlaybackState) {
+		busy = playback.playing;
+		currentStep = playback.currentStep;
+		onPlaybackChange?.(playback);
+	}
+
+	function stopMirroredSound() {
+		mirroredRunId += 1;
+		mirroredSynth?.dispose();
+
+		if (synth === mirroredSynth) {
+			synth = undefined;
+		}
+
+		mirroredSynth = undefined;
+	}
+
+	async function playMirroredSound(startStep: number) {
+		const runId = ++mirroredRunId;
+		mirroredSynth?.dispose();
+
+		try {
+			const nextSynth = await createSynth(value.params, { audible: false });
+			if (runId !== mirroredRunId) {
+				nextSynth.dispose();
+				return;
+			}
+
+			mirroredSynth = nextSynth;
+			synth = nextSynth;
+			await nextSynth.start();
+
+			if (runId !== mirroredRunId) return;
+
+			await nextSynth.trigger(value.notes.slice(startStep), value.pitch);
+		} catch {
+			if (runId === mirroredRunId) {
+				stopMirroredSound();
+			}
+		}
+	}
 
 	$effect(() => {
 		JSON.stringify(value);
@@ -48,17 +101,42 @@
 		mounted = true;
 	});
 
+	$effect(() => {
+		if (readOnly && mirroredPlayback) {
+			busy = mirroredPlayback.playing;
+			currentStep = mirroredPlayback.currentStep;
+
+			if (mirroredPlayback.playing && !mirroredWasPlaying) {
+				void playMirroredSound(mirroredPlayback.currentStep ?? 0);
+			} else if (!mirroredPlayback.playing && mirroredWasPlaying) {
+				stopMirroredSound();
+			}
+
+			mirroredWasPlaying = mirroredPlayback.playing;
+		}
+	});
+
+	onDestroy(() => {
+		playRunId += 1;
+		stopMirroredSound();
+		oldSynth?.dispose();
+
+		if (synth !== oldSynth) {
+			synth?.dispose();
+		}
+	});
+
 	async function playSound() {
-		if (busy) return;
+		if (busy || readOnly) return;
 
 		const runId = ++playRunId;
 		const callback = (step: number | null) => {
-			if (runId === playRunId) {
-				currentStep = step;
+			if (runId === playRunId && step !== null) {
+				setPlaybackState({ playing: true, currentStep: step });
 			}
 		};
 
-		busy = true;
+		setPlaybackState({ playing: true, currentStep: null });
 		oldSynth?.dispose();
 
 		try {
@@ -72,14 +150,13 @@
 			errorMsg = err instanceof Error ? err.message : 'Failed to play sound';
 		} finally {
 			if (runId === playRunId) {
-				currentStep = null;
+				setPlaybackState({ playing: false, currentStep: null });
 			}
-			busy = false;
 		}
 	}
 
 	function setParam(param: keyof Params, next: number) {
-		if (updatingFrom) return;
+		if (readOnly || updatingFrom) return;
 		updatingFrom = 'params';
 
 		const params = {
@@ -106,7 +183,7 @@
 	}
 
 	function setDescriptor(descriptor: Descriptor, next: number) {
-		if (updatingFrom) return;
+		if (readOnly || updatingFrom) return;
 		updatingFrom = 'descriptors';
 
 		const descriptors = {
@@ -133,6 +210,8 @@
 	}
 
 	function setPitch(pitch: number) {
+		if (readOnly) return;
+
 		value = {
 			...value,
 			pitch
@@ -343,6 +422,7 @@
 					bind:value={value.notes}
 					bind:currentStep
 					pitch={value.pitch}
+					{readOnly}
 					class="h-full flex-1"
 				/>
 			</div>

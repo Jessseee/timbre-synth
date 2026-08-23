@@ -1,10 +1,7 @@
 <script lang="ts">
 	import MultiPageForm from '$lib/components/MultiPageForm.svelte';
-	import TimbreSynth from '$lib/components/TimbreSynth.svelte'
-	import {
-		type RobotTask,
-		type SynthPatch
-	} from '$lib/frontend/Task';
+	import TimbreSynth from '$lib/components/TimbreSynth.svelte';
+	import { type RobotTask, type SynthPatch } from '$lib/frontend/Task';
 	import { createDefaultSynthPatch } from '$lib/frontend/Synth';
 	import * as m from '$lib/paraglide/messages';
 
@@ -128,9 +125,15 @@
 		</div>
 	{/snippet}
 
-	{#snippet annotation({ task, taskId, markChanged })}
+	{#snippet annotation({ task, taskId, markChanged, readOnly, playbackState, onPlaybackChange })}
 		{#key taskId}
-			<TimbreSynth bind:value={task.sound} onChange={markChanged} />
+			<TimbreSynth
+				bind:value={task.sound}
+				onChange={markChanged}
+				{onPlaybackChange}
+				mirroredPlayback={readOnly ? playbackState : undefined}
+				{readOnly}
+			/>
 		{/key}
 	{/snippet}
 </MultiPageForm>
